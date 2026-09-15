@@ -94,8 +94,8 @@ jobs:
           # (1) is the exact output set of the update-integration-data workflow
           # (its `allowed-files`); those paths are 100% machine-generated, so main
           # always wins and mirroring also clears the version-stamped rename/rename
-          # orphans they routinely produce. (2) keeps the release branch's stable
-          # major/minor and patch values while accepting new exports and placeholders
+          # orphans they routinely produce. (2) keeps version assignments already
+          # owned by the release branch while accepting new exports and placeholders
           # from main. (3) is site content plus documentation imagery, which the
           # release branch pins to release-specific versions and must never regress.
           # (4) is a genuine divergence we refuse to guess at.
@@ -146,8 +146,9 @@ jobs:
             fi
           }
 
-          # Take the config structure from main, but retain the release branch's
-          # stable documentation version pins.
+          # Take the config structure from main, but retain version assignments
+          # already present on the release branch. This lets a newly introduced
+          # assignment come from main until the release branch explicitly owns it.
           merge_release_version_config() {
             local path="$1"
             local merged
@@ -165,6 +166,9 @@ jobs:
                   } else if (/^export const currentAspireVersion = /) {
                     release_version = $0
                     release_version_count++
+                  } else if (/^export const currentAspirePreviewVersion = /) {
+                    release_preview_version = $0
+                    release_preview_version_count++
                   }
                   next
                 }
@@ -179,11 +183,22 @@ jobs:
                   main_version_count++
                   next
                 }
+                /^export const currentAspirePreviewVersion = / {
+                  if (release_preview_version_count == 1) {
+                    print release_preview_version
+                  } else {
+                    print
+                  }
+                  main_preview_version_count++
+                  next
+                }
                 { print }
 
                 END {
                   if (release_major_minor_count != 1 || release_version_count != 1 ||
-                      main_major_minor_count != 1 || main_version_count != 1) {
+                      release_preview_version_count > 1 ||
+                      main_major_minor_count != 1 || main_version_count != 1 ||
+                      main_preview_version_count != 1) {
                     exit 1
                   }
                 }
