@@ -85,18 +85,20 @@ jobs:
           MAIN_SHA="$(git rev-parse origin/main)"
 
           # The release branch is a curated snapshot of the shipped site. Merging
-          # main into it conflicts in three, and only three, well-understood ways:
+          # main into it conflicts in four well-understood ways:
           #   1. Generated data          -> main is authoritative (mirror it).
-          #   2. Release-owned files     -> the release branch is authoritative.
-          #   3. Anything else           -> a human must decide; abort cleanly.
+          #   2. Aspire version config   -> main structure with release version pins.
+          #   3. Curated content/imagery -> the release branch is authoritative.
+          #   4. Anything else           -> a human must decide; abort cleanly.
           #
           # (1) is the exact output set of the update-integration-data workflow
           # (its `allowed-files`); those paths are 100% machine-generated, so main
           # always wins and mirroring also clears the version-stamped rename/rename
-          # orphans they routinely produce. (2) is aspire-versions.mjs, site content,
-          # and documentation imagery, which the release branch pins to
-          # release-specific versions (stable metadata, dashboard screenshots, ...)
-          # and must never regress. (3) is a genuine divergence we refuse to guess at.
+          # orphans they routinely produce. (2) keeps the release branch's stable
+          # major/minor and patch values while accepting new exports and placeholders
+          # from main. (3) is site content plus documentation imagery, which the
+          # release branch pins to release-specific versions and must never regress.
+          # (4) is a genuine divergence we refuse to guess at.
 
           GEN_FILES="
           src/frontend/src/data/aspire-integrations.json
@@ -128,7 +130,6 @@ jobs:
           is_curated() {
             case "$1" in
               src/frontend/src/assets/samples/*) return 1 ;;
-              src/frontend/config/aspire-versions.mjs) return 0 ;;
               src/frontend/src/content/*) return 0 ;;
               src/frontend/src/assets/*) return 0 ;;
               *) return 1 ;;
@@ -143,6 +144,57 @@ jobs:
             else
               git rm -q --force --ignore-unmatch -- "$1" >/dev/null
             fi
+          }
+
+          # Take the config structure from main, but retain the release branch's
+          # stable documentation version pins.
+          merge_release_version_config() {
+            local path="$1"
+            local merged
+
+            if ! merged="$(mktemp)"; then
+              echo "::error::Could not create a temporary file for ${path}."
+              return 1
+            fi
+
+            if ! awk '
+                NR == FNR {
+                  if (/^export const currentAspireMajorMinorVersion = /) {
+                    release_major_minor = $0
+                    release_major_minor_count++
+                  } else if (/^export const currentAspireVersion = /) {
+                    release_version = $0
+                    release_version_count++
+                  }
+                  next
+                }
+
+                /^export const currentAspireMajorMinorVersion = / {
+                  print release_major_minor
+                  main_major_minor_count++
+                  next
+                }
+                /^export const currentAspireVersion = / {
+                  print release_version
+                  main_version_count++
+                  next
+                }
+                { print }
+
+                END {
+                  if (release_major_minor_count != 1 || release_version_count != 1 ||
+                      main_major_minor_count != 1 || main_version_count != 1) {
+                    exit 1
+                  }
+                }
+              ' <(git show "HEAD:$path") <(git show "$MAIN_SHA:$path") > "$merged"; then
+              rm -f "$merged"
+              echo "::error::Could not merge the release version pins into ${path}."
+              return 1
+            fi
+
+            mv "$merged" "$path"
+            git add -- "$path"
           }
 
           # A generated path needs syncing when it has a conflict stage or its
@@ -165,7 +217,11 @@ jobs:
           unresolved=0
           while IFS= read -r f; do
             [ -z "$f" ] && continue
-            if is_generated "$f"; then
+            if [ "$f" = "src/frontend/config/aspire-versions.mjs" ]; then
+              if ! merge_release_version_config "$f"; then
+                unresolved=1
+              fi
+            elif is_generated "$f"; then
               continue
             elif is_curated "$f"; then
               keep_release "$f"
