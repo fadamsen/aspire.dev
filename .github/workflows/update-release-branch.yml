@@ -87,16 +87,16 @@ jobs:
           # The release branch is a curated snapshot of the shipped site. Merging
           # main into it conflicts in three, and only three, well-understood ways:
           #   1. Generated data          -> main is authoritative (mirror it).
-          #   2. Curated content/imagery -> the release branch is authoritative.
+          #   2. Release-owned files     -> the release branch is authoritative.
           #   3. Anything else           -> a human must decide; abort cleanly.
           #
           # (1) is the exact output set of the update-integration-data workflow
           # (its `allowed-files`); those paths are 100% machine-generated, so main
           # always wins and mirroring also clears the version-stamped rename/rename
-          # orphans they routinely produce. (2) is site content plus documentation
-          # imagery, which the release branch pins to release-specific versions (the
-          # "Aspire 13.5 is available" banner, 13.5 dashboard screenshots, ...) and
-          # must never regress. (3) is a genuine divergence we refuse to guess at.
+          # orphans they routinely produce. (2) is aspire-versions.mjs, site content,
+          # and documentation imagery, which the release branch pins to
+          # release-specific versions (stable metadata, dashboard screenshots, ...)
+          # and must never regress. (3) is a genuine divergence we refuse to guess at.
 
           GEN_FILES="
           src/frontend/src/data/aspire-integrations.json
@@ -128,6 +128,7 @@ jobs:
           is_curated() {
             case "$1" in
               src/frontend/src/assets/samples/*) return 1 ;;
+              src/frontend/config/aspire-versions.mjs) return 0 ;;
               src/frontend/src/content/*) return 0 ;;
               src/frontend/src/assets/*) return 0 ;;
               *) return 1 ;;
