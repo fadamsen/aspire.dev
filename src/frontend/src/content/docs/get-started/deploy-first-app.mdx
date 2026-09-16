@@ -18,6 +18,10 @@ import csharpStarterPng from '@assets/get-started/csharp-starter.png';
 import javascriptStarterDarkPng from '@assets/get-started/javascript-starter-dark.png';
 import javascriptStarterLightPng from '@assets/get-started/javascript-starter-light.png';
 
+:::note[Generated dashboard image]
+The Docker Compose output examples on this page show the dashboard image selected by Aspire 13.5: `mcr.microsoft.com/dotnet/nightly/aspire-dashboard:13.5`. Your publisher version determines the generated image repository and tag. This version-line tag can receive updates; it isn't an immutable digest. For independently managed dashboard containers, see [Container image repositories and migration](/dashboard/standalone/#container-image-repositories-and-migration).
+:::
+
 <PivotSelector
     title="Select your programming language"
     key="aspire-lang"
@@ -650,7 +654,7 @@ After a deployment, the Aspire CLI writes to the provided output path (or the de
       ```yaml title="./aspire-output/docker-compose.yaml"
       services:
         env-dashboard:
-          image: "mcr.microsoft.com/dotnet/nightly/aspire-dashboard:latest"
+          image: "mcr.microsoft.com/dotnet/nightly/aspire-dashboard:13.5"
           expose:
           - "18888"
           - "18889"
@@ -978,7 +982,7 @@ After a deployment, the Aspire CLI writes to the provided output path (or the de
         ```yaml title="./aspire-output/docker-compose.yaml"
         services:
           env-dashboard:
-            image: "mcr.microsoft.com/dotnet/nightly/aspire-dashboard:latest"
+            image: "mcr.microsoft.com/dotnet/nightly/aspire-dashboard:13.5"
             expose:
             - "18888"
             - "18889"
