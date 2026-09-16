@@ -7,7 +7,7 @@ import samples from '@data/samples.json';
 const testsDir = path.dirname(fileURLToPath(import.meta.url));
 const docsRoot = path.resolve(testsDir, '..', '..', 'src', 'content', 'docs');
 const stableImage = 'mcr.microsoft.com/aspire/dashboard:latest';
-const aspire135Image = 'mcr.microsoft.com/dotnet/nightly/aspire-dashboard:13.5';
+const nightlyImage = 'mcr.microsoft.com/aspire/nightly/dashboard:latest';
 
 function readDoc(file: string): string {
   return readFileSync(path.join(docsRoot, file), 'utf8');
@@ -66,15 +66,15 @@ describe('standalone dashboard container images', () => {
   });
 });
 
-describe('generated dashboard image references', () => {
+describe('deployment example dashboard image references', () => {
   test.each(['get-started/deploy-first-app.mdx', 'ja/get-started/deploy-first-app.mdx'])(
-    '%s preserves the Aspire 13.5 publisher image',
+    '%s selects the canonical floating nightly image',
     (file) => {
-      // These are publisher output, not independently managed standalone containers.
+      // The examples intentionally select nightly latest, not a publisher default.
       const images = [...readDoc(file).matchAll(/image: "(mcr\.microsoft\.com\/[^"]+)"/g)].map(
         (match) => match[1]
       );
-      expect(images).toEqual([aspire135Image, aspire135Image]);
+      expect(images).toEqual([nightlyImage, nightlyImage]);
     }
   );
 });
